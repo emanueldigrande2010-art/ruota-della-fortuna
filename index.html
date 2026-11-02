@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="it" class="h-full bg-slate-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruota delle Decisioni - Gira la Ruota!</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- JS Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f43f5e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glow-btn {
+            box-shadow: 0 0 25px -5px rgba(168, 85, 247, 0.5);
+        }
+        .glow-btn:hover {
+            box-shadow: 0 0 35px -2px rgba(168, 85, 247, 0.75);
+        }
+        /* Custom scrollbar per la lista opzioni */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.5);
+        }
+    </style>
+</head>
+<body class="h-full text-slate-100 flex flex-col justify-between selection:bg-purple-500 selection:text-white">
+
+    <!-- Header Navbar -->
+    <header class="py-5 px-4 border-b border-slate-800/80 bg-slate-950/40">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-white shadow-lg text-lg">
+                    <i class="fa-solid fa-arrows-spin animate-spin-slow"></i>
+                </div>
+                <h1 class="text-xl sm:text-2xl font-black font-display tracking-tight text-white">
+                    RUOTA<span class="gradient-text">DECISIONI</span>
+                </h1>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="loadPresets('pizza')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+                    🍕 Cosa Mangio?
+                </button>
+                <button onclick="loadPresets('sino')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+                    ❓ Sì o No
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        
+        <!-- Colonna Sinistra / Ruota Canvas GIGANTE -->
+        <div class="lg:col-span-7 flex flex-col items-center justify-center relative">
+            <div class="relative w-full max-w-[500px] sm:max-w-[600px] lg:max-w-[650px] aspect-square flex items-center justify-center">
+                
+                <!-- Indicatore / Freccia in Alto -->
+                <div class="absolute -top-4 z-30 flex flex-col items-center filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.6)]">
+                    <div class="w-10 h-12 bg-gradient-to-b from-amber-300 to-amber-500 clip-pointer rounded-t-sm" style="clip-path: polygon(100% 0, 0 0, 50% 100%);"></div>
+                </div>
+
+                <!-- Bagliore Sfondo Ruota -->
+                <div class="absolute inset-2 bg-gradient-to-tr from-purple-600/30 via-pink-500/20 to-blue-500/30 rounded-full blur-3xl -z-10"></div>
+
+                <!-- Canvas Ruota (Ingrandito) -->
+                <canvas id="wheelCanvas" class="w-full h-full cursor-pointer transition-transform duration-100 touch-none" width="1000" height="1000"></canvas>
+
+                <!-- Bottone Centrale Spin Grande -->
+                <button id="spinBtn" onclick="spinWheel()" class="absolute z-20 w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-slate-900 border-4 border-amber-400 text-amber-400 font-extrabold font-display text-xl sm:text-2xl shadow-2xl flex flex-col items-center justify-center hover:scale-105 active:scale-95 transition-all glow-btn group">
+                    <span class="group-hover:hidden tracking-wider">GIRA</span>
+                    <i class="fa-solid fa-play text-2xl hidden group-hover:block ml-0.5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs sm:text-sm text-slate-400 mt-4 text-center">
+                <i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i> Clicca su <strong>GIRA</strong> o premi la <strong>Barra Spaziatrice</strong> per azionare la ruota!
+            </p>
+        </div>
+
+        <!-- Colonna Destra / Gestione Opzioni ("Robe da mettere") -->
+        <div class="lg:col-span-5 w-full">
+            <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col h-[560px]">
+                
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl sm:text-2xl font-bold font-display text-white">Le tue Opzioni</h2>
+                        <p class="text-xs text-slate-400 mt-0.5" id="itemCount">0 elementi inseriti</p>
+                    </div>
+                    <button onclick="clearAllOptions()" class="text-xs text-rose-400 hover:text-rose-300 font-medium px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition">
+                        <i class="fa-solid fa-trash-can mr-1"></i> Svuota tutto
+                    </button>
+                </div>
+
+                <!-- Input Aggiunta Opzione -->
+                <form onsubmit="handleAddOption(event)" class="flex gap-2 mb-4">
+                    <input type="text" id="optionInput" placeholder="Scrivi cosa aggiungere..." required maxlength="30" class="flex-grow px-4 py-3.5 rounded-xl bg-slate-950/60 border border-slate-700/80 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition">
+                    <button type="submit" class="px-5 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-plus text-base"></i>
+                        <span class="hidden sm:inline">Aggiungi</span>
+                    </button>
+                </form>
+
+                <!-- Lista Opzioni Inserite -->
+                <div id="optionsList" class="flex-grow overflow-y-auto space-y-2 pr-1">
+                    <!-- Inserite dinamicamente da JS -->
+                </div>
+
+                <!-- Footer Pannello -->
+                <div class="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                    <span>Colori automatici per fetta</span>
+                    <button onclick="shuffleOptions()" class="hover:text-white transition flex items-center gap-1.5 px-2 py-1 rounded bg-slate-800/50">
+                        <i class="fa-solid fa-shuffle"></i> Mescola ordine
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modale Risultato -->
+    <div id="resultModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="glass-card bg-slate-900/90 border border-slate-700 max-w-md w-full rounded-3xl p-8 text-center shadow-2xl transform scale-90 transition-transform duration-300" id="modalCard">
+            
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-tr from-amber-400 to-pink-500 flex items-center justify-center text-slate-900 text-3xl font-bold shadow-lg shadow-pink-500/30 animate-bounce">
+                🏆
+            </div>
+
+            <span class="text-xs font-extrabold uppercase tracking-widest text-purple-400">Il verdetto della ruota</span>
+            <h3 id="resultText" class="text-3xl sm:text-4xl font-extrabold font-display text-white mt-2 mb-6 break-words">
+                ---
+            </h3>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button onclick="closeModal()" class="flex-1 py-3.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm transition">
+                    Chiudi
+                </button>
+                <button onclick="removeWinnerAndClose()" class="flex-1 py-3.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-95 text-white font-semibold text-sm shadow-md transition">
+                    Rimuovi ed Elimina
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="py-4 text-center text-xs text-slate-500 border-t border-slate-800/40">
+        Ruota delle Decisioni &copy; 2026 - Realizzato con HTML5 Canvas e Tailwind CSS
+    </footer>
+
+    <!-- JavaScript di Funzionamento della Ruota -->
+    <script>
+        // Tabella Colori Brillanti
+        const COLOR_PALETTE = [
+            '#8b5cf6', '#ec4899', '#3b82f6', '#10b981', 
+            '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', 
+            '#a855f7', '#f43f5e', '#6366f1', '#14b8a6'
+        ];
+
+        // Stato dell'applicazione
+        let options = [
+            "Pizza 🍕",
+            "Sushi 🍱",
+            "Hamburger 🍔",
+            "Pasta 🍝",
+            "Insalata 🥗",
+            "Tacos 🌮"
+        ];
+        
+        let startAngle = 0;
+        let isSpinning = false;
+        let spinTimeout = null;
+        let spinAngleStart = 10;
+        let spinTime = 0;
+        let spinTimeTotal = 0;
+
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Inizializzazione al caricamento
+        window.onload = () => {
+            drawWheel();
+            renderOptionsList();
+            
+            // Ascolta Barra Spaziatrice
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && !isSpinning && document.activeElement.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    spinWheel();
+                }
+            });
+        };
+
+        // Generatore di Colori per le Fette
+        function getColor(index, total) {
+            return COLOR_PALETTE[index % COLOR_PALETTE.length];
+        }
+
+        // Disegna la Ruota su Canvas (Calibrato per 1000x1000)
+        function drawWheel() {
+            if (!ctx) return;
+            
+            const numOptions = options.length;
+            const outsideRadius = 460;
+            const textRadius = 330;
+            const insideRadius = 120;
+
+            ctx.clearRect(0, 0, 1000, 1000);
+
+            // Se non ci sono opzioni, mostra ruota vuota
+            if (numOptions === 0) {
+                ctx.beginPath();
+                ctx.arc(500, 500, outsideRadius, 0, Math.PI * 2);
+                ctx.fillStyle = '#334155';
+                ctx.fill();
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 12;
+                ctx.stroke();
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 36px "Plus Jakarta Sans"';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Aggiungi elementi a destra!', 500, 500);
+                return;
+            }
+
+            const arc = Math.PI / (numOptions / 2);
+
+            for (let i = 0; i < numOptions; i++) {
+                const angle = startAngle + i * arc;
+                
+                // Spicchio
+                ctx.fillStyle = getColor(i, numOptions);
+                ctx.beginPath();
+                ctx.arc(500, 500, outsideRadius, angle, angle + arc, false);
+                ctx.arc(500, 500, insideRadius, angle + arc, angle, true);
+                ctx.fill();
+
+                // Bordo Spicchio
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                // Testo Opzione
+                ctx.save();
+                ctx.fillStyle = '#FFFFFF';
+                ctx.translate(
+                    500 + Math.cos(angle + arc / 2) * textRadius,
+                    500 + Math.sin(angle + arc / 2) * textRadius
+                );
+                ctx.rotate(angle + arc / 2 + Math.PI / 2);
+                
+                // Formattazione testo lungo
+                let text = options[i];
+                if (text.length > 20) text = text.substring(0, 18) + '...';
+                
+                ctx.font = 'extrabold 30px "Plus Jakarta Sans", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 6;
+                ctx.fillText(text, 0, 0);
+                ctx.restore();
+            }
+
+            // Anello Esterno Decorativo
+            ctx.beginPath();
+            ctx.arc(500, 500, outsideRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 16;
+            ctx.stroke();
+
+            // Anello Interno
+            ctx.beginPath();
+            ctx.arc(500, 500, insideRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#0f172a';
+            ctx.fill();
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 8;
+            ctx.stroke();
+        }
+
+        // Funzione per azionare lo Spin
+        function spinWheel() {
+            if (isSpinning || options.length === 0) return;
+
+            isSpinning = true;
+            document.getElementById('spinBtn').disabled = true;
+
+            // Parametri casuali di rotazione
+            spinAngleStart = Math.random() * 20 + 25;
+            spinTime = 0;
+            spinTimeTotal = Math.random() * 3000 + 4000; // tra 4 e 7 secondi
+
+            rotateWheel();
+        }
+
+        // Animazione con Easing
+        function rotateWheel() {
+            spinTime += 20;
+
+            if (spinTime >= spinTimeTotal) {
+                stopRotateWheel();
+                return;
+            }
+
+            // Calcolo Easing Out (decelerazione graduale)
+            const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
+            startAngle += (spinAngle * Math.PI / 180);
+            drawWheel();
+
+            spinTimeout = setTimeout(rotateWheel, 20);
+        }
+
+        // Arresto Ruota e Calcolo Vincitore
+        function stopRotateWheel() {
+            clearTimeout(spinTimeout);
+            isSpinning = false;
+            document.getElementById('spinBtn').disabled = false;
+
+            const numOptions = options.length;
+            const arc = Math.PI / (numOptions / 2);
+            
+            // Calcola l'angolo fermo sotto la freccia (in alto a 270 gradi / 3PI/2)
+            let degrees = startAngle * 180 / Math.PI + 90;
+            let arcd = arc * 180 / Math.PI;
+            let index = Math.floor((360 - (degrees % 360)) / arcd);
+            
+            if (index < 0) index += numOptions;
+            index = index % numOptions;
+
+            const winner = options[index];
+            showResult(winner, index);
+        }
+
+        // Easing Function (Ease Out Quadratic)
+        function easeOut(t, b, c, d) {
+            const ts = (t /= d) * t;
+            const tc = ts * t;
+            return b + c * (tc + -3 * ts + 3 * t);
+        }
+
+        // Gestione Lista Opzioni UI
+        function renderOptionsList() {
+            const listEl = document.getElementById('optionsList');
+            const countEl = document.getElementById('itemCount');
+            listEl.innerHTML = '';
+            
+            countEl.textContent = `${options.length} ${options.length === 1 ? 'elemento inserito' : 'elementi inseriti'}`;
+
+            if (options.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-8 text-slate-500 text-sm">
+                        La lista è vuota. Aggiungi qualche opzione!
+                    </div>
+                `;
+                return;
+            }
+
+            options.forEach((opt, idx) => {
+                const color = getColor(idx, options.length);
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition group';
+                item.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <span class="w-3.5 h-3.5 rounded-full shrink-0 shadow-sm" style="background-color: ${color}"></span>
+                        <span class="text-sm font-medium text-slate-200 truncate">${escapeHtml(opt)}</span>
+                    </div>
+                    <button onclick="removeOption(${idx})" class="text-slate-500 hover:text-rose-400 p-1 transition opacity-80 group-hover:opacity-100" title="Elimina">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function handleAddOption(e) {
+            e.preventDefault();
+            const input = document.getElementById('optionInput');
+            const val = input.value.trim();
+            
+            if (val) {
+                options.push(val);
+                input.value = '';
+                drawWheel();
+                renderOptionsList();
+            }
+        }
+
+        function removeOption(index) {
+            options.splice(index, 1);
+            drawWheel();
+            renderOptionsList();
+        }
+
+        function clearAllOptions() {
+            options = [];
+            drawWheel();
+            renderOptionsList();
+        }
+
+        function shuffleOptions() {
+            for (let i = options.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [options[i], options[j]] = [options[j], options[i]];
+            }
+            drawWheel();
+            renderOptionsList();
+        }
+
+        function loadPresets(type) {
+            if (type === 'pizza') {
+                options = ["Margherita 🧀", "Diavola 🌶️", "Capricciosa 🍄", "Quattro Formaggi 🧀", "Marinara 🍅", "Prosciutto e Funghi 🥓"];
+            } else if (type === 'sino') {
+                options = ["SÌ 👍", "NO 👎", "Forse 🤔", "Riprova 🔄"];
+            }
+            drawWheel();
+            renderOptionsList();
+        }
+
+        // Modale Risultato & Coriandoli
+        let lastWinnerIndex = null;
+
+        function showResult(winner, index) {
+            lastWinnerIndex = index;
+            const modal = document.getElementById('resultModal');
+            const modalCard = document.getElementById('modalCard');
+            const resultText = document.getElementById('resultText');
+
+            resultText.textContent = winner;
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modalCard.classList.remove('scale-90');
+            modalCard.classList.add('scale-100');
+
+            // Effetto Coriandoli (Confetti)
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('resultModal');
+            const modalCard = document.getElementById('modalCard');
+
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modalCard.classList.remove('scale-100');
+            modalCard.classList.add('scale-90');
+        }
+
+        function removeWinnerAndClose() {
+            if (lastWinnerIndex !== null && lastWinnerIndex < options.length) {
+                removeOption(lastWinnerIndex);
+            }
+            closeModal();
+        }
+
+        // Sanitizzazione HTML per la sicurezza
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
